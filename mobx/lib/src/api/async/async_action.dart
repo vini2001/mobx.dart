@@ -1,5 +1,7 @@
 part of '../async.dart';
 
+Function(Object exception, StackTrace stacktrace)? _onMobXError;
+
 /// AsyncAction uses a [Zone] to keep track of async operations like [Future], timers and other
 /// kinds of micro-tasks.
 ///
@@ -12,12 +14,23 @@ class AsyncAction {
   AsyncAction._(ReactiveContext context, String name)
       : _actions = ActionController(context: context, name: name);
 
+  static void setOnMobXCaughtException(
+      Function(Object exception, StackTrace stacktrace) callback) {
+    _onMobXError = callback;
+  }
+
   final ActionController _actions;
 
   Zone? _zoneField;
   Zone get _zone {
     if (_zoneField == null) {
-      final spec = ZoneSpecification(run: _run, runUnary: _runUnary);
+      final spec = ZoneSpecification(
+        run: _run,
+        runUnary: _runUnary,
+        handleUncaughtError: (_, __, ___, exception, stacktrace) {
+          _onMobXError?.call(exception, stacktrace);
+        },
+      );
       _zoneField = Zone.current.fork(specification: spec);
     }
     return _zoneField!;
